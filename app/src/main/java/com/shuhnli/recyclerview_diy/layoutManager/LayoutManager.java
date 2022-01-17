@@ -1,4 +1,4 @@
-package com.shuhnli.recyclerview_diy.recyclerview;
+package com.shuhnli.recyclerview_diy.layoutManager;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -19,8 +19,16 @@ import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
+
+
+import com.shuhnli.recyclerview_diy.childUtil.ChildHelper;
+import com.shuhnli.recyclerview_diy.childUtil.ChildHelperCallBack;
+import com.shuhnli.recyclerview_diy.recyclerview.Adapter;
+import com.shuhnli.recyclerview_diy.recyclerview.Recycler;
+import com.shuhnli.recyclerview_diy.recyclerview.RecyclerView;
+import com.shuhnli.recyclerview_diy.recyclerview.ViewHolder;
+import com.shuhnli.recyclerview_diy.utils.SizeUtil;
+import com.shuhnli.recyclerview_diy.utils.ViewUtilKt;
 
 import java.util.ArrayList;
 
@@ -29,6 +37,7 @@ import java.util.ArrayList;
  * 通过更改LayoutManager，可以使用RecyclerView实现标准的垂直滚动列表、统一网格、交错网格、水平滚动集合等。
  */
 public abstract class LayoutManager {
+    private static final String TAG = "LayoutManager";
     ChildHelper mChildHelper;
     RecyclerView mRecyclerView;
 
@@ -36,83 +45,74 @@ public abstract class LayoutManager {
      * The callback used for retrieving information about a RecyclerView and its children in the
      * horizontal direction.
      */
-    private final ViewBoundsCheck.Callback mHorizontalBoundCheckCallback =
-            new ViewBoundsCheck.Callback() {
-                @Override
-                public View getChildAt(int index) {
-                    return LayoutManager.this.getChildAt(index);
-                }
+    private final ViewBoundsCheck.Callback mHorizontalBoundCheckCallback = new ViewBoundsCheck.Callback() {
+        @Override
+        public View getChildAt(int index) {
+            return LayoutManager.this.getChildAt(index);
+        }
 
-                @Override
-                public int getParentStart() {
-                    return LayoutManager.this.getPaddingLeft();
-                }
+        @Override
+        public int getParentStart() {
+            return LayoutManager.this.getPaddingLeft();
+        }
 
-                @Override
-                public int getParentEnd() {
-                    return LayoutManager.this.getWidth() - LayoutManager.this.getPaddingRight();
-                }
+        @Override
+        public int getParentEnd() {
+            return LayoutManager.this.getWidth() - LayoutManager.this.getPaddingRight();
+        }
 
-                @Override
-                public int getChildStart(View view) {
-                    final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
-                            view.getLayoutParams();
-                    return LayoutManager.this.getDecoratedLeft(view) - params.leftMargin;
-                }
+        @Override
+        public int getChildStart(View view) {
+            final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
+                    view.getLayoutParams();
+            return LayoutManager.this.getDecoratedLeft(view) - params.leftMargin;
+        }
 
-                @Override
-                public int getChildEnd(View view) {
-                    final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
-                            view.getLayoutParams();
-                    return LayoutManager.this.getDecoratedRight(view) + params.rightMargin;
-                }
-            };
+        @Override
+        public int getChildEnd(View view) {
+            final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
+                    view.getLayoutParams();
+            return LayoutManager.this.getDecoratedRight(view) + params.rightMargin;
+        }
+    };
 
     /**
      * The callback used for retrieving information about a RecyclerView and its children in the
      * vertical direction.
      */
-    private final ViewBoundsCheck.Callback mVerticalBoundCheckCallback =
-            new ViewBoundsCheck.Callback() {
-                @Override
-                public View getChildAt(int index) {
-                    return LayoutManager.this.getChildAt(index);
-                }
+    private final ViewBoundsCheck.Callback mVerticalBoundCheckCallback = new ViewBoundsCheck.Callback() {
+        @Override
+        public View getChildAt(int index) {
+            return LayoutManager.this.getChildAt(index);
+        }
 
-                @Override
-                public int getParentStart() {
-                    return LayoutManager.this.getPaddingTop();
-                }
+        @Override
+        public int getParentStart() {
+            return LayoutManager.this.getPaddingTop();
+        }
 
-                @Override
-                public int getParentEnd() {
-                    return LayoutManager.this.getHeight()
-                            - LayoutManager.this.getPaddingBottom();
-                }
+        @Override
+        public int getParentEnd() {
+            return LayoutManager.this.getHeight()
+                    - LayoutManager.this.getPaddingBottom();
+        }
 
-                @Override
-                public int getChildStart(View view) {
-                    final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
-                            view.getLayoutParams();
-                    return LayoutManager.this.getDecoratedTop(view) - params.topMargin;
-                }
+        @Override
+        public int getChildStart(View view) {
+            final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
+                    view.getLayoutParams();
+            return LayoutManager.this.getDecoratedTop(view) - params.topMargin;
+        }
 
-                @Override
-                public int getChildEnd(View view) {
-                    final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
-                            view.getLayoutParams();
-                    return LayoutManager.this.getDecoratedBottom(view) + params.bottomMargin;
-                }
-            };
+        @Override
+        public int getChildEnd(View view) {
+            final RecyclerView.LayoutParams params = (RecyclerView.LayoutParams)
+                    view.getLayoutParams();
+            return LayoutManager.this.getDecoratedBottom(view) + params.bottomMargin;
+        }
+    };
 
-    /**
-     * Utility objects used to check the boundaries of children against their parent
-     * RecyclerView.
-     *
-     * @see #isViewPartiallyVisible(View, boolean, boolean),
-     * {@link LinearLayoutManager#findOneVisibleChild(int, int, boolean, boolean)},
-     * and {@link LinearLayoutManager#findOnePartiallyOrCompletelyInvisibleChild(int, int)}.
-     */
+    //用于判断水平和竖直case下, 父子View边界的关系
     ViewBoundsCheck mHorizontalBoundCheck = new ViewBoundsCheck(mHorizontalBoundCheckCallback);
     ViewBoundsCheck mVerticalBoundCheck = new ViewBoundsCheck(mVerticalBoundCheckCallback);
 
@@ -121,7 +121,6 @@ public abstract class LayoutManager {
 
     boolean mRequestedSimpleAnimations = false;
 
-    boolean mIsAttachedToWindow = false;
 
     /**
      * This field is only set via the deprecated {@link #setAutoMeasureEnabled(boolean)} and is
@@ -153,17 +152,7 @@ public abstract class LayoutManager {
      */
     boolean mPrefetchMaxObservedInInitialPrefetch;
 
-    /**
-     * These measure specs might be the measure specs that were passed into RecyclerView's
-     * onMeasure method OR fake measure specs created by the RecyclerView.
-     * For example, when a layout is run, RecyclerView always sets these specs to be
-     * EXACTLY because a LayoutManager cannot resize RecyclerView during a layout pass.
-     * <p>
-     * Also, to be able to use the hint in unspecified measure specs, RecyclerView checks the
-     * API level and sets the size to 0 pre-M to avoid any issue that might be caused by
-     * corrupt values. Older platforms have no responsibility to provide a size if they set
-     * mode to unspecified.
-     */
+
     private int mWidthMode, mHeightMode;
     private int mWidth, mHeight;
 
@@ -187,48 +176,30 @@ public abstract class LayoutManager {
         void addPosition(int layoutPosition, int pixelDistance);
     }
 
-    void setRecyclerView(RecyclerView recyclerView) {
-        if (recyclerView == null) {
-            mRecyclerView = null;
-            mChildHelper = null;
-            mWidth = 0;
-            mHeight = 0;
-        } else {
-            mRecyclerView = recyclerView;
-            mChildHelper = recyclerView.mChildHelper;
-            mWidth = recyclerView.getWidth();
-            mHeight = recyclerView.getHeight();
-        }
+    //绑定到对应的RecyclerView
+    public void setRecyclerView(@NonNull RecyclerView recyclerView) {
+        mRecyclerView = recyclerView;
+        mChildHelper = recyclerView.mChildHelper;
+        mWidth = recyclerView.getWidth();
+        mHeight = recyclerView.getHeight();
         mWidthMode = View.MeasureSpec.EXACTLY;
         mHeightMode = View.MeasureSpec.EXACTLY;
     }
 
+    //设置测量模式
     void setMeasureSpecs(int wSpec, int hSpec) {
         mWidth = View.MeasureSpec.getSize(wSpec);
         mWidthMode = View.MeasureSpec.getMode(wSpec);
-        if (mWidthMode == View.MeasureSpec.UNSPECIFIED && !ALLOW_SIZE_IN_UNSPECIFIED_SPEC) {
-            mWidth = 0;
-        }
 
         mHeight = View.MeasureSpec.getSize(hSpec);
         mHeightMode = View.MeasureSpec.getMode(hSpec);
-        if (mHeightMode == View.MeasureSpec.UNSPECIFIED && !ALLOW_SIZE_IN_UNSPECIFIED_SPEC) {
-            mHeight = 0;
-        }
     }
 
     /**
-     * Called after a layout is calculated during a measure pass when using auto-measure.
-     * <p>
-     * It simply traverses all children to calculate a bounding box then calls
-     * {@link #setMeasuredDimension(Rect, int, int)}. LayoutManagers can override that method
-     * if they need to handle the bounding box differently.
-     * <p>
-     * For example, GridLayoutManager override that method to ensure that even if a column is
-     * empty, the GridLayoutManager still measures wide enough to include it.
-     *
-     * @param widthSpec  The widthSpec that was passing into RecyclerView's onMeasure
-     * @param heightSpec The heightSpec that was passing into RecyclerView's onMeasure
+     * 当使用自动度量时，在度量通过期间计算布局后调用。
+     * 它只是遍历所有的子元素来计算边界框，然后调用setMeasuredDimension(Rect, int, int)。
+     * 如果需要以不同的方式处理边界框，LayoutManagers可以重写该方法。
+     * 例如，GridLayoutManager重写该方法以确保即使列为空，GridLayoutManager仍然度量足够宽的范围来包含它。
      */
     void setMeasuredDimensionFromChildren(int widthSpec, int heightSpec) {
         final int count = getChildCount();
@@ -284,68 +255,11 @@ public abstract class LayoutManager {
     public void setMeasuredDimension(Rect childrenBounds, int wSpec, int hSpec) {
         int usedWidth = childrenBounds.width() + getPaddingLeft() + getPaddingRight();
         int usedHeight = childrenBounds.height() + getPaddingTop() + getPaddingBottom();
-        int width = chooseSize(wSpec, usedWidth, getMinimumWidth());
-        int height = chooseSize(hSpec, usedHeight, getMinimumHeight());
+        int width = SizeUtil.chooseSize(wSpec, usedWidth, getMinimumWidth());
+        int height = SizeUtil.chooseSize(hSpec, usedHeight, getMinimumHeight());
         setMeasuredDimension(width, height);
     }
 
-    /**
-     * Calls {@code RecyclerView#requestLayout} on the underlying RecyclerView
-     */
-    public void requestLayout() {
-        if (mRecyclerView != null) {
-            mRecyclerView.requestLayout();
-        }
-    }
-
-    /**
-     * Checks if RecyclerView is in the middle of a layout or scroll and throws an
-     * {@link IllegalStateException} if it <b>is not</b>.
-     *
-     * @param message The message for the exception. Can be null.
-     * @see #assertNotInLayoutOrScroll(String)
-     */
-    public void assertInLayoutOrScroll(String message) {
-        if (mRecyclerView != null) {
-            mRecyclerView.assertInLayoutOrScroll(message);
-        }
-    }
-
-    /**
-     * Chooses a size from the given specs and parameters that is closest to the desired size
-     * and also complies with the spec.
-     *
-     * @param spec    The measureSpec
-     * @param desired The preferred measurement
-     * @param min     The minimum value
-     * @return A size that fits to the given specs
-     */
-    public static int chooseSize(int spec, int desired, int min) {
-        final int mode = View.MeasureSpec.getMode(spec);
-        final int size = View.MeasureSpec.getSize(spec);
-        switch (mode) {
-            case View.MeasureSpec.EXACTLY:
-                return size;
-            case View.MeasureSpec.AT_MOST:
-                return Math.min(size, Math.max(desired, min));
-            case View.MeasureSpec.UNSPECIFIED:
-            default:
-                return Math.max(desired, min);
-        }
-    }
-
-    /**
-     * Checks if RecyclerView is in the middle of a layout or scroll and throws an
-     * {@link IllegalStateException} if it <b>is</b>.
-     *
-     * @param message The message for the exception. Can be null.
-     * @see #assertInLayoutOrScroll(String)
-     */
-    public void assertNotInLayoutOrScroll(String message) {
-        if (mRecyclerView != null) {
-            mRecyclerView.assertNotInLayoutOrScroll(message);
-        }
-    }
 
     /**
      * Defines whether the measuring pass of layout should use the AutoMeasure mechanism of
@@ -436,31 +350,6 @@ public abstract class LayoutManager {
         return mAutoMeasure;
     }
 
-    /**
-     * Returns whether this LayoutManager supports "predictive item animations".
-     * <p>
-     * "Predictive item animations" are automatically created animations that show
-     * where items came from, and where they are going to, as items are added, removed,
-     * or moved within a layout.
-     * <p>
-     * A LayoutManager wishing to support predictive item animations must override this
-     * method to return true (the default implementation returns false) and must obey certain
-     * behavioral contracts outlined in {@link #onLayoutChildren(Recycler, RecyclerView.State)}.
-     * <p>
-     * Whether item animations actually occur in a RecyclerView is actually determined by both
-     * the return value from this method and the
-     * {@link RecyclerView#setItemAnimator(ItemAnimator) ItemAnimator} set on the
-     * RecyclerView itself. If the RecyclerView has a non-null ItemAnimator but this
-     * method returns false, then only "simple item animations" will be enabled in the
-     * RecyclerView, in which views whose position are changing are simply faded in/out. If the
-     * RecyclerView has a non-null ItemAnimator and this method returns true, then predictive
-     * item animations will be enabled in the RecyclerView.
-     *
-     * @return true if this LayoutManager supports predictive item animations, false otherwise.
-     */
-    public boolean supportsPredictiveItemAnimations() {
-        return false;
-    }
 
     /**
      * Sets whether the LayoutManager should be queried for views outside of
@@ -552,42 +441,6 @@ public abstract class LayoutManager {
                                                 LayoutPrefetchRegistry layoutPrefetchRegistry) {
     }
 
-    void dispatchAttachedToWindow(RecyclerView view) {
-        mIsAttachedToWindow = true;
-        onAttachedToWindow(view);
-    }
-
-    void dispatchDetachedFromWindow(RecyclerView view, Recycler recycler) {
-        mIsAttachedToWindow = false;
-        onDetachedFromWindow(view, recycler);
-    }
-
-    /**
-     * Returns whether LayoutManager is currently attached to a RecyclerView which is attached
-     * to a window.
-     *
-     * @return True if this LayoutManager is controlling a RecyclerView and the RecyclerView
-     * is attached to window.
-     */
-    public boolean isAttachedToWindow() {
-        return mIsAttachedToWindow;
-    }
-
-    /**
-     * Causes the Runnable to execute on the next animation time step.
-     * The runnable will be run on the user interface thread.
-     * <p>
-     * Calling this method when LayoutManager is not attached to a RecyclerView has no effect.
-     *
-     * @param action The Runnable that will be executed.
-     * @see #removeCallbacks
-     */
-    public void postOnAnimation(Runnable action) {
-        if (mRecyclerView != null) {
-            ViewCompat.postOnAnimation(mRecyclerView, action);
-        }
-    }
-
     /**
      * Removes the specified Runnable from the message queue.
      * <p>
@@ -607,57 +460,6 @@ public abstract class LayoutManager {
         return false;
     }
 
-    /**
-     * Called when this LayoutManager is both attached to a RecyclerView and that RecyclerView
-     * is attached to a window.
-     * <p>
-     * If the RecyclerView is re-attached with the same LayoutManager and Adapter, it may not
-     * call {@link #onLayoutChildren(Recycler, RecyclerView.State)} if nothing has changed and a layout was
-     * not requested on the RecyclerView while it was detached.
-     * <p>
-     * Subclass implementations should always call through to the superclass implementation.
-     *
-     * @param view The RecyclerView this LayoutManager is bound to
-     * @see #onDetachedFromWindow(RecyclerView, Recycler)
-     */
-    @CallSuper
-    public void onAttachedToWindow(RecyclerView view) {
-    }
-
-    /**
-     * @deprecated override {@link #onDetachedFromWindow(RecyclerView, Recycler)}
-     */
-    @Deprecated
-    public void onDetachedFromWindow(RecyclerView view) {
-
-    }
-
-    /**
-     * Called when this LayoutManager is detached from its parent RecyclerView or when
-     * its parent RecyclerView is detached from its window.
-     * <p>
-     * LayoutManager should clear all of its View references as another LayoutManager might be
-     * assigned to the RecyclerView.
-     * <p>
-     * If the RecyclerView is re-attached with the same LayoutManager and Adapter, it may not
-     * call {@link #onLayoutChildren(Recycler, RecyclerView.State)} if nothing has changed and a layout was
-     * not requested on the RecyclerView while it was detached.
-     * <p>
-     * If your LayoutManager has View references that it cleans in on-detach, it should also
-     * call {@link RecyclerView#requestLayout()} to ensure that it is re-laid out when
-     * RecyclerView is re-attached.
-     * <p>
-     * Subclass implementations should always call through to the superclass implementation.
-     *
-     * @param view     The RecyclerView this LayoutManager is bound to
-     * @param recycler The recycler to use if you prefer to recycle your children instead of
-     *                 keeping them around.
-     * @see #onAttachedToWindow(RecyclerView)
-     */
-    @CallSuper
-    public void onDetachedFromWindow(RecyclerView view, Recycler recycler) {
-        onDetachedFromWindow(view);
-    }
 
     /**
      * Check if the RecyclerView is configured to clip child views to its padding.
@@ -809,86 +611,34 @@ public abstract class LayoutManager {
         return new RecyclerView.LayoutParams(c, attrs);
     }
 
-    /**
-     * Scroll horizontally by dx pixels in screen coordinates and return the distance traveled.
-     * The default implementation does nothing and returns 0.
-     *
-     * @param dx       distance to scroll by in pixels. X increases as scroll position
-     *                 approaches the right.
-     * @param recycler Recycler to use for fetching potentially cached views for a
-     *                 position
-     * @param state    Transient state of RecyclerView
-     * @return The actual distance scrolled. The return value will be negative if dx was
-     * negative and scrolling proceeeded in that direction.
-     * <code>Math.abs(result)</code> may be less than dx if a boundary was reached.
-     */
+    //水平滚动dx像素
     public int scrollHorizontallyBy(int dx, Recycler recycler, RecyclerView.State state) {
         return 0;
     }
 
-    /**
-     * Scroll vertically by dy pixels in screen coordinates and return the distance traveled.
-     * The default implementation does nothing and returns 0.
-     *
-     * @param dy       distance to scroll in pixels. Y increases as scroll position
-     *                 approaches the bottom.
-     * @param recycler Recycler to use for fetching potentially cached views for a
-     *                 position
-     * @param state    Transient state of RecyclerView
-     * @return The actual distance scrolled. The return value will be negative if dy was
-     * negative and scrolling proceeeded in that direction.
-     * <code>Math.abs(result)</code> may be less than dy if a boundary was reached.
-     */
+    //垂直滚动dx像素
     public int scrollVerticallyBy(int dy, Recycler recycler, RecyclerView.State state) {
         return 0;
     }
 
-    /**
-     * Query if horizontal scrolling is currently supported. The default implementation
-     * returns false.
-     *
-     * @return True if this LayoutManager can scroll the current contents horizontally
-     */
+    //是否支持水平滚动
     public boolean canScrollHorizontally() {
         return false;
     }
 
-    /**
-     * Query if vertical scrolling is currently supported. The default implementation
-     * returns false.
-     *
-     * @return True if this LayoutManager can scroll the current contents vertically
-     */
+    //是否支持垂直滚动
     public boolean canScrollVertically() {
         return false;
     }
 
-    /**
-     * Scroll to the specified adapter position.
-     * <p>
-     * Actual position of the item on the screen depends on the LayoutManager implementation.
-     *
-     * @param position Scroll to this adapter position.
-     */
+    //滚动到对应的index
     public void scrollToPosition(int position) {
-        if (DEBUG) {
-            Log.e(TAG, "You MUST implement scrollToPosition. It will soon become abstract");
-        }
+
     }
 
-    /**
-     * <p>Smooth scroll to the specified adapter position.</p>
-     * <p>To support smooth scrolling, override this method, create your {@link RecyclerView.SmoothScroller}
-     * instance and call {@link #startSmoothScroll(RecyclerView.SmoothScroller)}.
-     * </p>
-     *
-     * @param recyclerView The RecyclerView to which this layout manager is attached
-     * @param state        Current State of RecyclerView
-     * @param position     Scroll to this adapter position.
-     */
+    //滚动到对应的index, 需要有滚动动画,而不是瞬移过去
     public void smoothScrollToPosition(RecyclerView recyclerView, RecyclerView.State state,
                                        int position) {
-        Log.e(TAG, "You must override smoothScrollToPosition to support smooth scrolling");
     }
 
     /**
@@ -917,29 +667,6 @@ public abstract class LayoutManager {
         return mSmoothScroller != null && mSmoothScroller.isRunning();
     }
 
-    /**
-     * Returns the resolved layout direction for this RecyclerView.
-     *
-     * @return {@link ViewCompat#LAYOUT_DIRECTION_RTL} if the layout
-     * direction is RTL or returns
-     * {@link ViewCompat#LAYOUT_DIRECTION_LTR} if the layout direction
-     * is not RTL.
-     */
-    public int getLayoutDirection() {
-        return ViewCompat.getLayoutDirection(mRecyclerView);
-    }
-
-    /**
-     * Ends all animations on the view created by the {@link ItemAnimator}.
-     *
-     * @param view The View for which the animations should be ended.
-     * @see ItemAnimator#endAnimations()
-     */
-    public void endAnimation(View view) {
-        if (mRecyclerView.mItemAnimator != null) {
-            mRecyclerView.mItemAnimator.endAnimation(getChildViewHolderInt(view));
-        }
-    }
 
     /**
      * To be called only during {@link #onLayoutChildren(Recycler, RecyclerView.State)} to add a view
@@ -976,25 +703,11 @@ public abstract class LayoutManager {
         addViewInt(child, index, true);
     }
 
-    /**
-     * Add a view to the currently attached RecyclerView if needed. LayoutManagers should
-     * use this method to add views obtained from a {@link Recycler} using
-     * {@link Recycler#getViewForPosition(int)}.
-     *
-     * @param child View to add
-     */
+    ////////////////////添加子View////////////////////////
     public void addView(View child) {
         addView(child, -1);
     }
 
-    /**
-     * Add a view to the currently attached RecyclerView if needed. LayoutManagers should
-     * use this method to add views obtained from a {@link Recycler} using
-     * {@link Recycler#getViewForPosition(int)}.
-     *
-     * @param child View to add
-     * @param index Index to add child at
-     */
     public void addView(View child, int index) {
         addViewInt(child, index, false);
     }
@@ -1012,7 +725,9 @@ public abstract class LayoutManager {
             // So if a View re-appears in post layout pass, remove it from disappearing list.
             mRecyclerView.mViewInfoStore.removeFromDisappearedInLayout(holder);
         }
+
         final RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) child.getLayoutParams();
+        //case1: 该View属于被回收的view
         if (holder.wasReturnedFromScrap() || holder.isScrap()) {
             if (holder.isScrap()) {
                 holder.unScrap();
@@ -1020,10 +735,9 @@ public abstract class LayoutManager {
                 holder.clearReturnedFromScrapFlag();
             }
             mChildHelper.attachViewToParent(child, index, child.getLayoutParams(), false);
-            if (DISPATCH_TEMP_DETACH) {
-                ViewCompat.dispatchFinishTemporaryDetach(child);
-            }
-        } else if (child.getParent() == mRecyclerView) { // it was not a scrap but a valid child
+
+        } else if (child.getParent() == mRecyclerView) {
+            //case2:该View属于一个正在使用的view (按照正常的case, 一般不会出现这种case)
             // ensure in correct position
             int currentIndex = mChildHelper.indexOfChild(child);
             if (index == -1) {
@@ -1053,26 +767,11 @@ public abstract class LayoutManager {
         }
     }
 
-    /**
-     * Remove a view from the currently attached RecyclerView if needed. LayoutManagers should
-     * use this method to completely remove a child view that is no longer needed.
-     * LayoutManagers should strongly consider recycling removed views using
-     * {@link Recycler#recycleView(View)}.
-     *
-     * @param child View to remove
-     */
+    //从当前附加的RecyclerView中移除一个View
     public void removeView(View child) {
         mChildHelper.removeView(child);
     }
 
-    /**
-     * Remove a view from the currently attached RecyclerView if needed. LayoutManagers should
-     * use this method to completely remove a child view that is no longer needed.
-     * LayoutManagers should strongly consider recycling removed views using
-     * {@link Recycler#recycleView(View)}.
-     *
-     * @param index Index of the child view to remove
-     */
     public void removeViewAt(int index) {
         final View child = getChildAt(index);
         if (child != null) {
@@ -1080,10 +779,6 @@ public abstract class LayoutManager {
         }
     }
 
-    /**
-     * Remove all views from the currently attached RecyclerView. This will not recycle
-     * any of the affected views; the LayoutManager is responsible for doing so if desired.
-     */
     public void removeAllViews() {
         // Only remove non-animating views
         final int childCount = getChildCount();
@@ -1093,86 +788,27 @@ public abstract class LayoutManager {
     }
 
     /**
-     * Returns offset of the RecyclerView's text baseline from the its top boundary.
-     *
-     * @return The offset of the RecyclerView's text baseline from the its top boundary; -1 if
-     * there is no baseline.
-     */
-    public int getBaseline() {
-        return -1;
-    }
-
-    /**
-     * Returns the adapter position of the item represented by the given View. This does not
-     * contain any adapter changes that might have happened after the last layout.
-     *
-     * @param view The view to query
-     * @return The adapter position of the item which is rendered by this View.
-     */
-    public int getPosition(@NonNull View view) {
-        return ((RecyclerView.LayoutParams) view.getLayoutParams()).getViewLayoutPosition();
-    }
-
-    /**
      * Returns the View type defined by the adapter.
      *
      * @param view The view to query
      * @return The type of the view assigned by the adapter.
      */
     public int getItemViewType(@NonNull View view) {
-        return getChildViewHolderInt(view).getItemViewType();
+        return ViewUtilKt.getViewHolder(view).getItemViewType();
     }
 
-    /**
-     * Traverses the ancestors of the given view and returns the item view that contains it
-     * and also a direct child of the LayoutManager.
-     * <p>
-     * Note that this method may return null if the view is a child of the RecyclerView but
-     * not a child of the LayoutManager (e.g. running a disappear animation).
-     *
-     * @param view The view that is a descendant of the LayoutManager.
-     * @return The direct child of the LayoutManager which contains the given view or null if
-     * the provided view is not a descendant of this LayoutManager.
-     * @see RecyclerView#getChildViewHolder(View)
-     * @see RecyclerView#findContainingViewHolder(View)
-     */
-    @Nullable
-    public View findContainingItemView(@NonNull View view) {
-        if (mRecyclerView == null) {
-            return null;
-        }
-        View found = mRecyclerView.findContainingItemView(view);
-        if (found == null) {
-            return null;
-        }
-        if (mChildHelper.isHidden(found)) {
-            return null;
-        }
-        return found;
-    }
 
-    /**
-     * Finds the view which represents the given adapter position.
-     * <p>
-     * This method traverses each child since it has no information about child order.
-     * Override this method to improve performance if your LayoutManager keeps data about
-     * child views.
-     * <p>
-     * If a view is ignored via {@link #ignoreView(View)}, it is also ignored by this method.
-     *
-     * @param position Position of the item in adapter
-     * @return The child view that represents the given position or null if the position is not
-     * laid out
-     */
+    //查找表示给定index的View
+    //需要遍历所有的子view,在获取子view的position值 == 所需的position
     @Nullable
     public View findViewByPosition(int position) {
         final int childCount = getChildCount();
         for (int i = 0; i < childCount; i++) {
             View child = getChildAt(i);
-            ViewHolder vh = getChildViewHolderInt(child);
-            if (vh == null) {
+            if (child == null) {
                 continue;
             }
+            ViewHolder vh = ViewUtilKt.getViewHolder(child);
             if (vh.getLayoutPosition() == position && !vh.shouldIgnore()
                     && (mRecyclerView.mState.isPreLayout() || !vh.isRemoved())) {
                 return child;
@@ -1181,95 +817,35 @@ public abstract class LayoutManager {
         return null;
     }
 
-    /**
-     * Temporarily detach a child view.
-     *
-     * <p>LayoutManagers may want to perform a lightweight detach operation to rearrange
-     * views currently attached to the RecyclerView. Generally LayoutManager implementations
-     * will want to use {@link #detachAndScrapView(View, Recycler)}
-     * so that the detached view may be rebound and reused.</p>
-     *
-     * <p>If a LayoutManager uses this method to detach a view, it <em>must</em>
-     * {@link #attachView(View, int, RecyclerView.LayoutParams) reattach}
-     * or {@link #removeDetachedView(View) fully remove} the detached view
-     * before the LayoutManager entry point method called by RecyclerView returns.</p>
-     *
-     * @param child Child to detach
-     */
+    //移除view的可见性
     public void detachView(@NonNull View child) {
-        final int ind = mChildHelper.indexOfChild(child);
-        if (ind >= 0) {
-            detachViewInternal(ind, child);
+        final int index = mChildHelper.indexOfChild(child);
+        if (index >= 0) {
+            mChildHelper.detachViewFromParent(index);
         }
     }
 
-    /**
-     * Temporarily detach a child view.
-     *
-     * <p>LayoutManagers may want to perform a lightweight detach operation to rearrange
-     * views currently attached to the RecyclerView. Generally LayoutManager implementations
-     * will want to use {@link #detachAndScrapView(View, Recycler)}
-     * so that the detached view may be rebound and reused.</p>
-     *
-     * <p>If a LayoutManager uses this method to detach a view, it <em>must</em>
-     * {@link #attachView(View, int, RecyclerView.LayoutParams) reattach}
-     * or {@link #removeDetachedView(View) fully remove} the detached view
-     * before the LayoutManager entry point method called by RecyclerView returns.</p>
-     *
-     * @param index Index of the child to detach
-     */
     public void detachViewAt(int index) {
-        detachViewInternal(index, getChildAt(index));
-    }
-
-    private void detachViewInternal(int index, @NonNull View view) {
-        if (DISPATCH_TEMP_DETACH) {
-            ViewCompat.dispatchStartTemporaryDetach(view);
-        }
         mChildHelper.detachViewFromParent(index);
     }
 
-    /**
-     * Reattach a previously {@link #detachView(View) detached} view.
-     * This method should not be used to reattach views that were previously
-     * {@link #detachAndScrapView(View, Recycler)}  scrapped}.
-     *
-     * @param child Child to reattach
-     * @param index Intended child index for child
-     * @param lp    LayoutParams for child
-     */
-    public void attachView(@NonNull View child, int index, RecyclerView.LayoutParams lp) {
-        ViewHolder vh = getChildViewHolderInt(child);
+
+    //attachView
+    public void attachView(@NonNull View child, int index, LayoutParams lp) {
+        ViewHolder vh = ViewUtilKt.getViewHolder(child);
         if (vh.isRemoved()) {
             mRecyclerView.mViewInfoStore.addToDisappearedInLayout(vh);
         } else {
             mRecyclerView.mViewInfoStore.removeFromDisappearedInLayout(vh);
         }
         mChildHelper.attachViewToParent(child, index, lp, vh.isRemoved());
-        if (DISPATCH_TEMP_DETACH) {
-            ViewCompat.dispatchFinishTemporaryDetach(child);
-        }
     }
 
-    /**
-     * Reattach a previously {@link #detachView(View) detached} view.
-     * This method should not be used to reattach views that were previously
-     * {@link #detachAndScrapView(View, Recycler)}  scrapped}.
-     *
-     * @param child Child to reattach
-     * @param index Intended child index for child
-     */
     public void attachView(@NonNull View child, int index) {
-        attachView(child, index, (RecyclerView.LayoutParams) child.getLayoutParams());
+        attachView(child, index, (LayoutParams) child.getLayoutParams());
     }
 
-    /**
-     * Reattach a previously {@link #detachView(View) detached} view.
-     * This method should not be used to reattach views that were previously
-     * {@link #detachAndScrapView(View, Recycler)}  scrapped}.
-     *
-     * @param child Child to reattach
-     */
+
     public void attachView(@NonNull View child) {
         attachView(child, -1);
     }
@@ -1284,12 +860,7 @@ public abstract class LayoutManager {
         mRecyclerView.removeDetachedView(child, false);
     }
 
-    /**
-     * Moves a View from one position to another.
-     *
-     * @param fromIndex The View's initial index
-     * @param toIndex   The View's target index
-     */
+    //把view从fromIndex移动至toIndex
     public void moveView(int fromIndex, int toIndex) {
         View view = getChildAt(fromIndex);
         if (view == null) {
@@ -1300,40 +871,16 @@ public abstract class LayoutManager {
         attachView(view, toIndex);
     }
 
-    /**
-     * Detach a child view and add it to a {@link Recycler Recycler's} scrap heap.
-     *
-     * <p>Scrapping a view allows it to be rebound and reused to show updated or
-     * different data.</p>
-     *
-     * @param child    Child to detach and scrap
-     * @param recycler Recycler to deposit the new scrap view into
-     */
     public void detachAndScrapView(@NonNull View child, @NonNull Recycler recycler) {
         int index = mChildHelper.indexOfChild(child);
         scrapOrRecycleView(recycler, index, child);
     }
 
-    /**
-     * Detach a child view and add it to a {@link Recycler Recycler's} scrap heap.
-     *
-     * <p>Scrapping a view allows it to be rebound and reused to show updated or
-     * different data.</p>
-     *
-     * @param index    Index of child to detach and scrap
-     * @param recycler Recycler to deposit the new scrap view into
-     */
     public void detachAndScrapViewAt(int index, @NonNull Recycler recycler) {
         final View child = getChildAt(index);
         scrapOrRecycleView(recycler, index, child);
     }
 
-    /**
-     * Remove a child view and recycle it using the given Recycler.
-     *
-     * @param child    Child to remove and recycle
-     * @param recycler Recycler to use to recycle child
-     */
     public void removeAndRecycleView(@NonNull View child, @NonNull Recycler recycler) {
         removeView(child);
         recycler.recycleView(child);
@@ -1351,186 +898,57 @@ public abstract class LayoutManager {
         recycler.recycleView(view);
     }
 
-    /**
-     * Return the current number of child views attached to the parent RecyclerView.
-     * This does not include child views that were temporarily detached and/or scrapped.
-     *
-     * @return Number of attached children
-     */
+    //统计一共有多少个子View
     public int getChildCount() {
         return mChildHelper != null ? mChildHelper.getChildCount() : 0;
     }
 
-    /**
-     * Return the child view at the given index
-     *
-     * @param index Index of child to return
-     * @return Child view at index
-     */
+    //index 换view
     @Nullable
     public View getChildAt(int index) {
         return mChildHelper != null ? mChildHelper.getChildAt(index) : null;
     }
 
-    /**
-     * Return the width measurement spec mode that is currently relevant to the LayoutManager.
-     *
-     * <p>This value is set only if the LayoutManager opts into the AutoMeasure api via
-     * {@link #setAutoMeasureEnabled(boolean)}.
-     *
-     * <p>When RecyclerView is running a layout, this value is always set to
-     * {@link View.MeasureSpec#EXACTLY} even if it was measured with a different spec mode.
-     *
-     * @return Width measure spec mode
-     * @see View.MeasureSpec#getMode(int)
-     */
+
     public int getWidthMode() {
         return mWidthMode;
     }
 
-    /**
-     * Return the height measurement spec mode that is currently relevant to the LayoutManager.
-     *
-     * <p>This value is set only if the LayoutManager opts into the AutoMeasure api via
-     * {@link #setAutoMeasureEnabled(boolean)}.
-     *
-     * <p>When RecyclerView is running a layout, this value is always set to
-     * {@link View.MeasureSpec#EXACTLY} even if it was measured with a different spec mode.
-     *
-     * @return Height measure spec mode
-     * @see View.MeasureSpec#getMode(int)
-     */
     public int getHeightMode() {
         return mHeightMode;
     }
 
-    /**
-     * Returns the width that is currently relevant to the LayoutManager.
-     *
-     * <p>This value is usually equal to the laid out width of the {@link RecyclerView} but may
-     * reflect the current {@link View.MeasureSpec} width if the
-     * {@link LayoutManager} is using AutoMeasure and the RecyclerView is in the process of
-     * measuring. The LayoutManager must always use this method to retrieve the width relevant
-     * to it at any given time.
-     *
-     * @return Width in pixels
-     */
     @Px
     public int getWidth() {
         return mWidth;
     }
 
-    /**
-     * Returns the height that is currently relevant to the LayoutManager.
-     *
-     * <p>This value is usually equal to the laid out height of the {@link RecyclerView} but may
-     * reflect the current {@link View.MeasureSpec} height if the
-     * {@link LayoutManager} is using AutoMeasure and the RecyclerView is in the process of
-     * measuring. The LayoutManager must always use this method to retrieve the height relevant
-     * to it at any given time.
-     *
-     * @return Height in pixels
-     */
     @Px
     public int getHeight() {
         return mHeight;
     }
 
-    /**
-     * Return the left padding of the parent RecyclerView
-     *
-     * @return Padding in pixels
-     */
     @Px
     public int getPaddingLeft() {
         return mRecyclerView != null ? mRecyclerView.getPaddingLeft() : 0;
     }
 
-    /**
-     * Return the top padding of the parent RecyclerView
-     *
-     * @return Padding in pixels
-     */
+
     @Px
     public int getPaddingTop() {
         return mRecyclerView != null ? mRecyclerView.getPaddingTop() : 0;
     }
 
-    /**
-     * Return the right padding of the parent RecyclerView
-     *
-     * @return Padding in pixels
-     */
+
     @Px
     public int getPaddingRight() {
         return mRecyclerView != null ? mRecyclerView.getPaddingRight() : 0;
     }
 
-    /**
-     * Return the bottom padding of the parent RecyclerView
-     *
-     * @return Padding in pixels
-     */
+
     @Px
     public int getPaddingBottom() {
         return mRecyclerView != null ? mRecyclerView.getPaddingBottom() : 0;
-    }
-
-    /**
-     * Return the start padding of the parent RecyclerView
-     *
-     * @return Padding in pixels
-     */
-    @Px
-    public int getPaddingStart() {
-        return mRecyclerView != null ? ViewCompat.getPaddingStart(mRecyclerView) : 0;
-    }
-
-    /**
-     * Return the end padding of the parent RecyclerView
-     *
-     * @return Padding in pixels
-     */
-    @Px
-    public int getPaddingEnd() {
-        return mRecyclerView != null ? ViewCompat.getPaddingEnd(mRecyclerView) : 0;
-    }
-
-    /**
-     * Returns true if the RecyclerView this LayoutManager is bound to has focus.
-     *
-     * @return True if the RecyclerView has focus, false otherwise.
-     * @see View#isFocused()
-     */
-    public boolean isFocused() {
-        return mRecyclerView != null && mRecyclerView.isFocused();
-    }
-
-    /**
-     * Returns true if the RecyclerView this LayoutManager is bound to has or contains focus.
-     *
-     * @return true if the RecyclerView has or contains focus
-     * @see View#hasFocus()
-     */
-    public boolean hasFocus() {
-        return mRecyclerView != null && mRecyclerView.hasFocus();
-    }
-
-    /**
-     * Returns the item View which has or contains focus.
-     *
-     * @return A direct child of RecyclerView which has focus or contains the focused child.
-     */
-    @Nullable
-    public View getFocusedChild() {
-        if (mRecyclerView == null) {
-            return null;
-        }
-        final View focused = mRecyclerView.getFocusedChild();
-        if (focused == null || mChildHelper.isHidden(focused)) {
-            return null;
-        }
-        return focused;
     }
 
     /**
@@ -1692,17 +1110,7 @@ public abstract class LayoutManager {
     }
 
 
-    /**
-     * Measure a child view using standard measurement policy, taking the padding
-     * of the parent RecyclerView and any added item decorations into account.
-     *
-     * <p>If the RecyclerView can be scrolled in either dimension the caller may
-     * pass 0 as the widthUsed or heightUsed parameters as they will be irrelevant.</p>
-     *
-     * @param child      Child view to measure
-     * @param widthUsed  Width in pixels currently consumed by other views, if relevant
-     * @param heightUsed Height in pixels currently consumed by other views, if relevant
-     */
+    //测量子view
     public void measureChild(@NonNull View child, int widthUsed, int heightUsed) {
         final RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) child.getLayoutParams();
 
@@ -1720,17 +1128,6 @@ public abstract class LayoutManager {
         }
     }
 
-    /**
-     * RecyclerView internally does its own View measurement caching which should help with
-     * WRAP_CONTENT.
-     * <p>
-     * Use this method if the View is already measured once in this layout pass.
-     */
-    boolean shouldReMeasureChild(View child, int widthSpec, int heightSpec, RecyclerView.LayoutParams lp) {
-        return !mMeasurementCacheEnabled
-                || !isMeasurementUpToDate(child.getMeasuredWidth(), widthSpec, lp.width)
-                || !isMeasurementUpToDate(child.getMeasuredHeight(), heightSpec, lp.height);
-    }
 
     // we may consider making this public
 
@@ -1921,103 +1318,6 @@ public abstract class LayoutManager {
         return View.MeasureSpec.makeMeasureSpec(resultSize, resultMode);
     }
 
-    /**
-     * Returns the measured width of the given child, plus the additional size of
-     * any insets applied by {@link RecyclerView.ItemDecoration ItemDecorations}.
-     *
-     * @param child Child view to query
-     * @return child's measured width plus <code>ItemDecoration</code> insets
-     * @see View#getMeasuredWidth()
-     */
-    public int getDecoratedMeasuredWidth(@NonNull View child) {
-        final Rect insets = ((RecyclerView.LayoutParams) child.getLayoutParams()).mDecorInsets;
-        return child.getMeasuredWidth() + insets.left + insets.right;
-    }
-
-    /**
-     * Returns the measured height of the given child, plus the additional size of
-     * any insets applied by {@link RecyclerView.ItemDecoration ItemDecorations}.
-     *
-     * @param child Child view to query
-     * @return child's measured height plus <code>ItemDecoration</code> insets
-     * @see View#getMeasuredHeight()
-     */
-    public int getDecoratedMeasuredHeight(@NonNull View child) {
-        final Rect insets = ((RecyclerView.LayoutParams) child.getLayoutParams()).mDecorInsets;
-        return child.getMeasuredHeight() + insets.top + insets.bottom;
-    }
-
-    /**
-     * Lay out the given child view within the RecyclerView using coordinates that
-     * include any current {@link RecyclerView.ItemDecoration ItemDecorations}.
-     *
-     * <p>LayoutManagers should prefer working in sizes and coordinates that include
-     * item decoration insets whenever possible. This allows the LayoutManager to effectively
-     * ignore decoration insets within measurement and layout code. See the following
-     * methods:</p>
-     * <ul>
-     *     <li>{@link #layoutDecoratedWithMargins(View, int, int, int, int)}</li>
-     *     <li>{@link #getDecoratedBoundsWithMargins(View, Rect)}</li>
-     *     <li>{@link #measureChild(View, int, int)}</li>
-     *     <li>{@link #measureChildWithMargins(View, int, int)}</li>
-     *     <li>{@link #getDecoratedLeft(View)}</li>
-     *     <li>{@link #getDecoratedTop(View)}</li>
-     *     <li>{@link #getDecoratedRight(View)}</li>
-     *     <li>{@link #getDecoratedBottom(View)}</li>
-     *     <li>{@link #getDecoratedMeasuredWidth(View)}</li>
-     *     <li>{@link #getDecoratedMeasuredHeight(View)}</li>
-     * </ul>
-     *
-     * @param child  Child to lay out
-     * @param left   Left edge, with item decoration insets included
-     * @param top    Top edge, with item decoration insets included
-     * @param right  Right edge, with item decoration insets included
-     * @param bottom Bottom edge, with item decoration insets included
-     * @see View#layout(int, int, int, int)
-     * @see #layoutDecoratedWithMargins(View, int, int, int, int)
-     */
-    public void layoutDecorated(@NonNull View child, int left, int top, int right, int bottom) {
-        final Rect insets = ((RecyclerView.LayoutParams) child.getLayoutParams()).mDecorInsets;
-        child.layout(left + insets.left, top + insets.top, right - insets.right,
-                bottom - insets.bottom);
-    }
-
-    /**
-     * Lay out the given child view within the RecyclerView using coordinates that
-     * include any current {@link RecyclerView.ItemDecoration ItemDecorations} and margins.
-     *
-     * <p>LayoutManagers should prefer working in sizes and coordinates that include
-     * item decoration insets whenever possible. This allows the LayoutManager to effectively
-     * ignore decoration insets within measurement and layout code. See the following
-     * methods:</p>
-     * <ul>
-     *     <li>{@link #layoutDecorated(View, int, int, int, int)}</li>
-     *     <li>{@link #measureChild(View, int, int)}</li>
-     *     <li>{@link #measureChildWithMargins(View, int, int)}</li>
-     *     <li>{@link #getDecoratedLeft(View)}</li>
-     *     <li>{@link #getDecoratedTop(View)}</li>
-     *     <li>{@link #getDecoratedRight(View)}</li>
-     *     <li>{@link #getDecoratedBottom(View)}</li>
-     *     <li>{@link #getDecoratedMeasuredWidth(View)}</li>
-     *     <li>{@link #getDecoratedMeasuredHeight(View)}</li>
-     * </ul>
-     *
-     * @param child  Child to lay out
-     * @param left   Left edge, with item decoration insets and left margin included
-     * @param top    Top edge, with item decoration insets and top margin included
-     * @param right  Right edge, with item decoration insets and right margin included
-     * @param bottom Bottom edge, with item decoration insets and bottom margin included
-     * @see View#layout(int, int, int, int)
-     * @see #layoutDecorated(View, int, int, int, int)
-     */
-    public void layoutDecoratedWithMargins(@NonNull View child, int left, int top, int right,
-                                           int bottom) {
-        final RecyclerView.LayoutParams lp = (RecyclerView.LayoutParams) child.getLayoutParams();
-        final Rect insets = lp.mDecorInsets;
-        child.layout(left + insets.left + lp.leftMargin, top + insets.top + lp.topMargin,
-                right - insets.right - lp.rightMargin,
-                bottom - insets.bottom - lp.bottomMargin);
-    }
 
     /**
      * Calculates the bounding box of the View while taking into account its matrix changes
@@ -2116,31 +1416,6 @@ public abstract class LayoutManager {
         return child.getBottom() + getBottomDecorationHeight(child);
     }
 
-    /**
-     * Calculates the item decor insets applied to the given child and updates the provided
-     * Rect instance with the inset values.
-     * <ul>
-     *     <li>The Rect's left is set to the total width of left decorations.</li>
-     *     <li>The Rect's top is set to the total height of top decorations.</li>
-     *     <li>The Rect's right is set to the total width of right decorations.</li>
-     *     <li>The Rect's bottom is set to total height of bottom decorations.</li>
-     * </ul>
-     * <p>
-     * Note that item decorations are automatically calculated when one of the LayoutManager's
-     * measure child methods is called. If you need to measure the child with custom specs via
-     * {@link View#measure(int, int)}, you can use this method to get decorations.
-     *
-     * @param child   The child view whose decorations should be calculated
-     * @param outRect The Rect to hold result values
-     */
-    public void calculateItemDecorationsForChild(@NonNull View child, @NonNull Rect outRect) {
-        if (mRecyclerView == null) {
-            outRect.set(0, 0, 0, 0);
-            return;
-        }
-        Rect insets = mRecyclerView.getItemDecorInsetsForChild(child);
-        outRect.set(insets);
-    }
 
     /**
      * Returns the total height of item decorations applied to child's top.

@@ -181,7 +181,7 @@ public abstract class ViewHolder {
         }
     }
 
-    boolean shouldIgnore() {
+    public boolean shouldIgnore() {
         return (mFlags & FLAG_IGNORE) != 0;
     }
 
@@ -322,19 +322,19 @@ public abstract class ViewHolder {
         return mItemViewType;
     }
 
-    boolean isScrap() {
+    public boolean isScrap() {
         return mScrapContainer != null;
     }
 
-    void unScrap() {
+    public void unScrap() {
         mScrapContainer.unscrapView(this);
     }
 
-    boolean wasReturnedFromScrap() {
+    public boolean wasReturnedFromScrap() {
         return (mFlags & FLAG_RETURNED_FROM_SCRAP) != 0;
     }
 
-    void clearReturnedFromScrapFlag() {
+    public void clearReturnedFromScrapFlag() {
         mFlags = mFlags & ~FLAG_RETURNED_FROM_SCRAP;
     }
 
@@ -351,11 +351,11 @@ public abstract class ViewHolder {
         mInChangeScrap = isChangeScrap;
     }
 
-    boolean isInvalid() {
+    public boolean isInvalid() {
         return (mFlags & FLAG_INVALID) != 0;
     }
 
-    boolean needsUpdate() {
+    public boolean needsUpdate() {
         return (mFlags & FLAG_UPDATE) != 0;
     }
 
@@ -363,7 +363,7 @@ public abstract class ViewHolder {
         return (mFlags & FLAG_BOUND) != 0;
     }
 
-    boolean isRemoved() {
+    public boolean isRemoved() {
         return (mFlags & FLAG_REMOVED) != 0;
     }
 
@@ -549,7 +549,7 @@ public abstract class ViewHolder {
         return (mFlags & FLAG_NOT_RECYCLABLE) == 0 && ViewCompat.hasTransientState(itemView);
     }
 
-    boolean isUpdated() {
+    public boolean isUpdated() {
         return (mFlags & FLAG_UPDATE) != 0;
     }
 }

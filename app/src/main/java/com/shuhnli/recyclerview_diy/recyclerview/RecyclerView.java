@@ -24,14 +24,12 @@ import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.database.Observable;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
@@ -54,7 +52,6 @@ import android.widget.EdgeEffect;
 import android.widget.LinearLayout;
 import android.widget.OverScroller;
 
-import androidx.annotation.CallSuper;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -81,11 +78,9 @@ import androidx.recyclerview.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static androidx.annotation.RestrictTo.Scope.LIBRARY;
@@ -93,6 +88,9 @@ import static androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX;
 import static androidx.core.util.Preconditions.checkArgument;
 import static androidx.core.view.ViewCompat.TYPE_NON_TOUCH;
 import static androidx.core.view.ViewCompat.TYPE_TOUCH;
+
+import com.shuhnli.recyclerview_diy.childUtil.ChildHelper;
+import com.shuhnli.recyclerview_diy.layoutManager.LayoutManager;
 
 /**
  * A flexible view for providing a limited window into a large data set.
@@ -357,7 +355,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
     /**
      * Handles abstraction between LayoutManager children and RecyclerView children
      */
-    ChildHelper mChildHelper;
+    public ChildHelper mChildHelper;
 
     /**
      * Keeps data about views to be used for animations
@@ -401,6 +399,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
     final RectF mTempRectF = new RectF();
     Adapter mAdapter;
     @VisibleForTesting
+    public
     LayoutManager mLayout;
     // TODO: Remove this once setRecyclerListener has been removed.
     RecyclerListener mRecyclerListener;
@@ -410,7 +409,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
     private final ArrayList<OnItemTouchListener> mOnItemTouchListeners =
             new ArrayList<>();
     private OnItemTouchListener mInterceptingOnItemTouchListener;
-    boolean mIsAttached;
+
     boolean mHasFixedSize;
     boolean mEnableFastScroller;
     @VisibleForTesting
@@ -541,7 +540,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
     GapWorker.LayoutPrefetchRegistryImpl mPrefetchRegistry =
             ALLOW_THREAD_GAP_WORK ? new GapWorker.LayoutPrefetchRegistryImpl() : null;
 
-    final State mState = new State();
+    public final State mState = new State();
 
     private OnScrollListener mScrollListener;
     private List<OnScrollListener> mScrollListeners;
@@ -1326,7 +1325,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
      *
      * @param layout LayoutManager to use
      */
-    public void setLayoutManager(@Nullable LayoutManager layout) {
+    public void setLayoutManager(@NonNull LayoutManager layout) {
         if (layout == mLayout) {
             return;
         }
@@ -1353,16 +1352,14 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
         // this is just a defensive measure for faulty item animators.
         mChildHelper.removeAllViewsUnfiltered();
         mLayout = layout;
-        if (layout != null) {
-            if (layout.mRecyclerView != null) {
-                throw new IllegalArgumentException("LayoutManager " + layout
-                        + " is already attached to a RecyclerView:"
-                        + layout.mRecyclerView.exceptionLabel());
-            }
-            mLayout.setRecyclerView(this);
-            if (mIsAttached) {
-                mLayout.dispatchAttachedToWindow(this);
-            }
+        if (layout.mRecyclerView != null) {
+            throw new IllegalArgumentException("LayoutManager " + layout
+                    + " is already attached to a RecyclerView:"
+                    + layout.mRecyclerView.exceptionLabel());
+        }
+        mLayout.setRecyclerView(this);
+        if (mIsAttached) {
+            mLayout.dispatchAttachedToWindow(this);
         }
         mRecycler.updateViewCacheSize();
         requestLayout();
@@ -3092,56 +3089,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
         }
     }
 
-    /**
-     * Returns true if RecyclerView is attached to window.
-     */
-    @Override
-    public boolean isAttachedToWindow() {
-        return mIsAttached;
-    }
 
-    /**
-     * Checks if RecyclerView is in the middle of a layout or scroll and throws an
-     * {@link IllegalStateException} if it <b>is not</b>.
-     *
-     * @param message The message for the exception. Can be null.
-     * @see #assertNotInLayoutOrScroll(String)
-     */
-    void assertInLayoutOrScroll(String message) {
-        if (!isComputingLayout()) {
-            if (message == null) {
-                throw new IllegalStateException("Cannot call this method unless RecyclerView is "
-                        + "computing a layout or scrolling" + exceptionLabel());
-            }
-            throw new IllegalStateException(message + exceptionLabel());
-
-        }
-    }
-
-    /**
-     * Checks if RecyclerView is in the middle of a layout or scroll and throws an
-     * {@link IllegalStateException} if it <b>is</b>.
-     *
-     * @param message The message for the exception. Can be null.
-     * @see #assertInLayoutOrScroll(String)
-     */
-    void assertNotInLayoutOrScroll(String message) {
-        if (isComputingLayout()) {
-            if (message == null) {
-                throw new IllegalStateException("Cannot call this method while RecyclerView is "
-                        + "computing a layout or scrolling" + exceptionLabel());
-            }
-            throw new IllegalStateException(message);
-        }
-        if (mDispatchScrollCounter > 0) {
-            Log.w(TAG, "Cannot call this method in a scroll callback. Scroll callbacks might"
-                            + "be run during a measure & layout pass where you cannot change the"
-                            + "RecyclerView data. Any method call that might change the structure"
-                            + "of the RecyclerView or the adapter contents should be postponed to"
-                            + "the next frame.",
-                    new IllegalStateException("" + exceptionLabel()));
-        }
-    }
 
     /**
      * Add an {@link OnItemTouchListener} to intercept touch events before they are dispatched
@@ -3798,7 +3746,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
      * otherwise
      */
     public boolean isComputingLayout() {
-        return mLayoutOrScrollCounter > 0;
+        return true;
     }
 
     /**
@@ -4451,7 +4399,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
     }
 
     @Override
-    protected void removeDetachedView(View child, boolean animate) {
+    public void removeDetachedView(View child, boolean animate) {
         ViewHolder vh = getChildViewHolderInt(child);
         if (vh != null) {
             if (vh.isTmpDetached()) {
@@ -4525,15 +4473,6 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
         dispatchLayout();
         TraceCompat.endSection();
         mFirstLayoutComplete = true;
-    }
-
-    @Override
-    public void requestLayout() {
-        if (mInterceptRequestLayoutDepth == 0 && !mLayoutSuppressed) {
-            super.requestLayout();
-        } else {
-            mLayoutWasDefered = true;
-        }
     }
 
     void markItemDecorInsetsDirty() {
@@ -5213,7 +5152,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
         getDecoratedBoundsWithMarginsInt(view, outBounds);
     }
 
-    static void getDecoratedBoundsWithMarginsInt(View view, Rect outBounds) {
+    public static void getDecoratedBoundsWithMarginsInt(View view, Rect outBounds) {
         final LayoutParams lp = (LayoutParams) view.getLayoutParams();
         final Rect insets = lp.mDecorInsets;
         outBounds.set(view.getLeft() - insets.left - lp.leftMargin,
@@ -5222,7 +5161,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
                 view.getBottom() + insets.bottom + lp.bottomMargin);
     }
 
-    Rect getItemDecorInsetsForChild(View child) {
+    public Rect getItemDecorInsetsForChild(View child) {
         final LayoutParams lp = (LayoutParams) child.getLayoutParams();
         if (!lp.mInsetsDirty) {
             return lp.mDecorInsets;
@@ -6232,139 +6171,6 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
         return getScrollingChildHelper().dispatchNestedPreFling(velocityX, velocityY);
     }
 
-    /**
-     * {@link MarginLayoutParams LayoutParams} subclass for children of
-     * {@link RecyclerView}. Custom {@link LayoutManager layout managers} are encouraged
-     * to create their own subclass of this <code>LayoutParams</code> class
-     * to store any additional required per-child view metadata about the layout.
-     */
-    public static class LayoutParams extends MarginLayoutParams {
-        ViewHolder mViewHolder;
-        final Rect mDecorInsets = new Rect();
-        boolean mInsetsDirty = true;
-        // Flag is set to true if the view is bound while it is detached from RV.
-        // In this case, we need to manually call invalidate after view is added to guarantee that
-        // invalidation is populated through the View hierarchy
-        boolean mPendingInvalidate = false;
-
-        public LayoutParams(Context c, AttributeSet attrs) {
-            super(c, attrs);
-        }
-
-        public LayoutParams(int width, int height) {
-            super(width, height);
-        }
-
-        public LayoutParams(MarginLayoutParams source) {
-            super(source);
-        }
-
-        public LayoutParams(ViewGroup.LayoutParams source) {
-            super(source);
-        }
-
-        public LayoutParams(LayoutParams source) {
-            super((ViewGroup.LayoutParams) source);
-        }
-
-        /**
-         * Returns true if the view this LayoutParams is attached to needs to have its content
-         * updated from the corresponding adapter.
-         *
-         * @return true if the view should have its content updated
-         */
-        public boolean viewNeedsUpdate() {
-            return mViewHolder.needsUpdate();
-        }
-
-        /**
-         * Returns true if the view this LayoutParams is attached to is now representing
-         * potentially invalid data. A LayoutManager should scrap/recycle it.
-         *
-         * @return true if the view is invalid
-         */
-        public boolean isViewInvalid() {
-            return mViewHolder.isInvalid();
-        }
-
-        /**
-         * Returns true if the adapter data item corresponding to the view this LayoutParams
-         * is attached to has been removed from the data set. A LayoutManager may choose to
-         * treat it differently in order to animate its outgoing or disappearing state.
-         *
-         * @return true if the item the view corresponds to was removed from the data set
-         */
-        public boolean isItemRemoved() {
-            return mViewHolder.isRemoved();
-        }
-
-        /**
-         * Returns true if the adapter data item corresponding to the view this LayoutParams
-         * is attached to has been changed in the data set. A LayoutManager may choose to
-         * treat it differently in order to animate its changing state.
-         *
-         * @return true if the item the view corresponds to was changed in the data set
-         */
-        public boolean isItemChanged() {
-            return mViewHolder.isUpdated();
-        }
-
-        /**
-         * @deprecated use {@link #getViewLayoutPosition()} or {@link #getViewAdapterPosition()}
-         */
-        @Deprecated
-        public int getViewPosition() {
-            return mViewHolder.getPosition();
-        }
-
-        /**
-         * Returns the adapter position that the view this LayoutParams is attached to corresponds
-         * to as of latest layout calculation.
-         *
-         * @return the adapter position this view as of latest layout pass
-         */
-        public int getViewLayoutPosition() {
-            return mViewHolder.getLayoutPosition();
-        }
-
-        /**
-         * @deprecated This method is confusing when nested adapters are used.
-         * If you are calling from the context of an {@link Adapter},
-         * use {@link #getBindingAdapterPosition()}. If you need the position that
-         * {@link RecyclerView} sees, use {@link #getAbsoluteAdapterPosition()}.
-         */
-        @Deprecated
-        public int getViewAdapterPosition() {
-            return mViewHolder.getBindingAdapterPosition();
-        }
-
-        /**
-         * Returns the up-to-date adapter position that the view this LayoutParams is attached to
-         * corresponds to in the {@link RecyclerView}. If the {@link RecyclerView} has an
-         * {@link Adapter} that merges other adapters, this position will be with respect to the
-         * adapter that is assigned to the {@link RecyclerView}.
-         *
-         * @return the up-to-date adapter position this view with respect to the RecyclerView. It
-         * may return {@link RecyclerView#NO_POSITION} if item represented by this View has been
-         * removed or
-         * its up-to-date position cannot be calculated.
-         */
-        public int getAbsoluteAdapterPosition() {
-            return mViewHolder.getAbsoluteAdapterPosition();
-        }
-
-        /**
-         * Returns the up-to-date adapter position that the view this LayoutParams is attached to
-         * corresponds to with respect to the {@link Adapter} that bound this View.
-         *
-         * @return the up-to-date adapter position this view relative to the {@link Adapter} that
-         * bound this View. It may return {@link RecyclerView#NO_POSITION} if item represented by
-         * this View has been removed or its up-to-date position cannot be calculated.
-         */
-        public int getBindingAdapterPosition() {
-            return mViewHolder.getBindingAdapterPosition();
-        }
-    }
 
     /**
      * Observer base class for watching changes to an {@link Adapter}.
@@ -6644,7 +6450,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
             mRecyclerView.scrollToPosition(position);
         }
 
-        protected void onChildAttachedToWindow(View child) {
+        public void onChildAttachedToWindow(View child) {
             if (getChildPosition(child) == getTargetPosition()) {
                 mTargetView = child;
                 if (DEBUG) {
